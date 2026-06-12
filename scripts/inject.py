@@ -103,10 +103,26 @@ def inject_fragment_shader(
     return glsl
 
 
+# Passes that only write to depth buffer, not color buffer.
+# Injecting color grading here breaks rendering on some GPUs.
+SKIP_PASSES = {"DepthOnly", "DepthOnlyOpaque"}
+
+
 def is_target_fragment(file: Path) -> bool:
-    """We only inject into ESSL_310 fragment shaders (Android target)."""
+    """We only inject into ESSL_310 fragment shaders for color passes.
+
+    Skips depth-only passes which write only to the depth buffer.
+    """
     name = file.name
-    return name.endswith(".Fragment.glsl") and "ESSL_310" in name
+    if not (name.endswith(".Fragment.glsl") and "ESSL_310" in name):
+        return False
+
+    # Pass name is the parent directory (e.g. .../Opaque/0.ESSL_310.Fragment.glsl)
+    pass_name = file.parent.name
+    if pass_name in SKIP_PASSES:
+        return False
+
+    return True
 
 
 def process_material_dir(

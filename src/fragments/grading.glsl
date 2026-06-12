@@ -33,6 +33,7 @@ vec3 lilyContrast(vec3 c, float amount) {
 }
 
 vec3 lilyGrade(vec3 color) {
+    color = max(color, vec3(0.001));
     color = pow(color, vec3(2.2));
     color *= LILY_EXPOSURE;
     color = lilyTonemapACES(color);
