@@ -1,0 +1,7 @@
+# Lily Shader has no required Python package dependencies.
+# The build pipeline uses only the Python standard library plus MaterialBinTool (Java).
+#
+# Optional tools (downloaded manually, see docs/SETUP.md):
+#   - MaterialBinTool.jar  (required, Java)
+#   - shaderc.exe          (optional)
+#   - glslang.exe          (optional, GLSL validation)
