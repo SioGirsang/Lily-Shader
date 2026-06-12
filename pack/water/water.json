@@ -5,9 +5,9 @@
       "identifier": "lily:default_water"
     },
     "particle_concentrations": {
-      "chlorophyll": 0.5,
-      "suspended_sediment": 0.5,
-      "cdom": 1.0
+      "chlorophyll": 0.4,
+      "suspended_sediment": 0.4,
+      "cdom": 0.8
     },
     "waves": {
       "enabled": true,
@@ -29,6 +29,6 @@
       "power": 2,
       "scale": 0.5
     },
-    "biome_water_color_contribution": 0.2
+    "biome_water_color_contribution": 0.4
   }
 }
