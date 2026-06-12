@@ -2,92 +2,28 @@
   "format_version": 2,
   "header": {
     "name": "Lily Shader",
-    "description": "Realistic shader for Minecraft Bedrock with PBR support. By SioGirsang.",
+    "description": "Realistic shader with ACES tonemap, dynamic lighting, and PBR support. By SioGirsang.",
     "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "version": [0, 1, 0],
-    "min_engine_version": [1, 21, 0]
+    "version": [0, 2, 0],
+    "min_engine_version": [1, 21, 120]
   },
   "modules": [
     {
       "type": "resources",
       "uuid": "f0e1d2c3-b4a5-6789-0fed-cba987654321",
-      "version": [0, 1, 0]
+      "version": [0, 2, 0]
     }
   ],
+  "capabilities": ["pbr"],
   "subpacks": [
     {
       "folder_name": "low",
-      "name": "§aLow",
+      "name": "§aLow - Performance",
       "memory_tier": 0
     },
     {
       "folder_name": "mid",
-      "name": "§eMid",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_shadows_off",
-      "name": "§bCustom - Shadows Off",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_shadows_low",
-      "name": "§bCustom - Shadows Low",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_shadows_high",
-      "name": "§bCustom - Shadows High",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_water_simple",
-      "name": "§bCustom - Water Simple",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_water_full",
-      "name": "§bCustom - Water Full",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_bloom_off",
-      "name": "§bCustom - Bloom Off",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_bloom_on",
-      "name": "§bCustom - Bloom On",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_clouds_simple",
-      "name": "§bCustom - Clouds Simple",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_clouds_full",
-      "name": "§bCustom - Clouds Full",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_pbr_off",
-      "name": "§bCustom - PBR Off",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_pbr_on",
-      "name": "§bCustom - PBR On",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_motionblur_off",
-      "name": "§bCustom - Motion Blur Off",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "custom_motionblur_on",
-      "name": "§bCustom - Motion Blur On",
+      "name": "§eMid - Balanced (Recommended)",
       "memory_tier": 1
     }
   ]

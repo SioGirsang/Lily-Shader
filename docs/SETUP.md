@@ -1,10 +1,12 @@
 # Development Environment Setup
 
+Lily Shader is a pure JSON resource pack for Minecraft Bedrock's **Vibrant Visuals** pipeline. No compilation, no Java, no third-party shader tools.
+
 ## Prerequisites
 
 - **Python 3.10+** - [Download](https://www.python.org/downloads/)
-- **Java JDK 8+** - [Download](https://adoptium.net/)
 - **Git** - [Download](https://git-scm.com/)
+- A text editor (VS Code recommended)
 
 ## Step 1: Clone Repository
 
@@ -13,88 +15,58 @@ git clone https://github.com/SioGirsang/Lily-Shader.git
 cd Lily-Shader
 ```
 
-## Step 2: Download MaterialBinTool
-
-1. Go to: https://github.com/ddf8196/MaterialBinTool/releases/tag/v0.9.1
-2. Download `MaterialBinTool-0.9.1-all.jar`
-3. Place in `tools/bin/MaterialBinTool.jar`
-
-## Step 3: Download shaderc.exe (Optional, for validation)
-
-1. Go to: https://github.com/ddf8196/MaterialBinTool/releases/tag/v0.8.2
-2. Download `shaderc.exe`
-3. Place in `tools/bin/shaderc.exe`
-
-## Step 4: Download glslang (Optional, for GLSL validation)
-
-1. Go to: https://github.com/KhronosGroup/glslang/releases
-2. Download `glslang-master-windows-x64-Release.zip`
-3. Extract `bin/glslangValidator.exe`
-4. Rename to `glslang.exe` and place in `tools/bin/glslang.exe`
-
-## Step 5: Extract Vanilla Materials from Minecraft APK
-
-### Getting the APK from Android
-
-1. Open **ZArchiver** on your Android device
-2. Navigate to one of:
-   - `/data/app/~~XXXX/com.mojang.minecraftpe-XXXX/base.apk`
-   - Or your Downloads folder if you have the APK
-3. **Copy** `base.apk` to `/sdcard/Download/minecraft.apk`
-4. Transfer to your PC via USB or cloud storage
-
-### Extract Materials
+## Step 2: Build
 
 ```bash
-# Extract .material.bin files from APK
-python scripts/extract_apk.py path/to/minecraft.apk
-
-# Unpack with MaterialBinTool
-java -jar tools/bin/MaterialBinTool.jar -u vanilla/android/RenderChunk.material.bin -o vanilla/mbt
+python scripts/build.py
 ```
 
-## Step 6: Verify Setup
+Output: `build/Lily-Shader-v{version}.mcpack`
 
-```bash
-# Build the mid preset
-python scripts/build.py --preset mid
+That's it. No tool downloads needed.
 
-# Check output
-dir build/
-```
+## Step 3: Test in Minecraft
 
-You should see:
-- `Lily-Shader-v0.1.0-alpha-mid.mcpack`
+1. Transfer `.mcpack` to your device
+2. Open it - Minecraft auto-imports
+3. Enable Vibrant Visuals: **Settings > Video > Graphics Mode > Vibrant Visuals**
+4. Apply pack via Global Resources or per-world settings
+5. Select preset (Low or Mid)
 
-## Folder Structure After Setup
+## Editing Configs
 
-```
-Lily-Shader/
-├── tools/bin/
-│   ├── MaterialBinTool.jar  ✓
-│   ├── shaderc.exe          (optional)
-│   └── glslang.exe          (optional)
-├── vanilla/
-│   ├── android/
-│   │   └── RenderChunk.material.bin
-│   └── mbt/
-│       └── RenderChunk/     (unpacked)
-└── build/
-    └── Lily-Shader-v0.1.0-alpha-mid.mcpack
-```
+All shader behavior is controlled by JSON files in `pack/`. Edit them with any text editor:
+
+| File | Controls |
+|------|----------|
+| `color_grading/color_grading.json` | Tone mapping, contrast, saturation, color temperature |
+| `lighting/global.json` | Sun/moon brightness and color (with day/night keyframes) |
+| `atmospherics/atmospherics.json` | Sky color, scattering, sun glare |
+| `water/water.json` | Wave depth, octaves, speed, caustics |
+| `shadows/shadows.json` | Shadow style (soft/blocky), texel size |
+| `pbr/global.json` | Default metalness/emissive/roughness fallback |
+| `local_lighting/local_lighting.json` | Custom colors for torches, lanterns, etc |
+
+After editing, run `python scripts/build.py` to repackage.
+
+## Schema References
+
+Microsoft's official schemas describe every available field:
+- https://learn.microsoft.com/en-us/minecraft/creator/documents/vibrantvisuals/
 
 ## Troubleshooting
 
-### "MaterialBinTool.jar not found"
-Ensure `tools/bin/MaterialBinTool.jar` exists.
+### Vibrant Visuals option missing in Minecraft
+Your device may not support deferred rendering. The pack installs but effects won't render. Try a more recent device, or check if a Minecraft update enables your device.
 
-### "Java not found"
-Install JDK 8+ and ensure `java` is in your PATH.
+### Pack imports but effects don't apply
+- Verify Vibrant Visuals is **ON** in video settings (this is required)
+- Verify the pack is **applied** (Global Resources or in-world resource list)
+- Check that `min_engine_version` in your Minecraft is 1.21.120 or higher
 
-### "Vanilla unpacked materials not found"
-Run the extract and unpack steps first (Step 5).
+### JSON validation
+The build script will fail loudly if any JSON has syntax errors. To check manually:
 
-### Shader doesn't work in-game
-- Ensure MB Loader (Android) or BetterRenderDragon (Windows) is installed
-- Check that the resource pack is enabled in Global Resources
-- Try restarting Minecraft after enabling
+```bash
+python -c "import json; json.load(open('pack/color_grading/color_grading.json'))"
+```

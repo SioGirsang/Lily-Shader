@@ -1,114 +1,69 @@
 # Build Guide
 
+Building Lily Shader is just bundling JSON files into a `.mcpack` (which is a zip).
+
 ## Quick Build
 
 ```bash
-# Build main presets (low + mid)
 python scripts/build.py
-
-# Build specific preset
-python scripts/build.py --preset mid
-
-# Build all presets including custom variants
-python scripts/build.py --all
-
-# Build with specific version
-python scripts/build.py --preset mid --version 0.2.0
 ```
 
-## Build Pipeline
+Output: `build/Lily-Shader-v0.2.0-alpha.mcpack`
 
-The build process has 4 stages:
+## Custom Version
 
-```
-1. Copy     - Copy vanilla unpacked material to working directory
-2. Inject   - Inject Lily shader code into fragment shaders
-3. Repack   - Repack into .material.bin using MaterialBinTool
-4. Package  - Bundle into .mcpack with manifest and assets
+```bash
+python scripts/build.py --version 0.3.0
 ```
 
-## Available Presets
+Output: `build/Lily-Shader-v0.3.0.mcpack`
 
-### Main Presets
-- `low` - minimal color grading, best performance
-- `mid` - balanced color grading (recommended)
+## What the Build Does
 
-### Custom Variants (for future features)
-- `custom_shadows_off`, `custom_shadows_low`, `custom_shadows_high`
-- `custom_water_simple`, `custom_water_full`
-- `custom_bloom_off`, `custom_bloom_on`
-- `custom_clouds_simple`, `custom_clouds_full`
-- `custom_pbr_off`, `custom_pbr_on`
-- `custom_motionblur_off`, `custom_motionblur_on`
-
-## Build Output
-
-```
-build/
-├── work/                    # Working directory (injected shaders)
-│   └── mid/
-│       └── RenderChunk/
-├── materials/               # Repacked .material.bin files
-│   └── mid/
-│       └── RenderChunk.material.bin
-├── stage/                   # Staging for .mcpack creation
-└── Lily-Shader-v0.1.0-alpha-mid.mcpack
-```
+1. Reads everything in `pack/`
+2. Creates a zip archive with `.mcpack` extension
+3. Done - no compilation, no shader generation
 
 ## Adding New Effects
 
-1. Create a new fragment file in `src/fragments/`:
-   ```
-   src/fragments/bloom.glsl
-   ```
+Vibrant Visuals supports many JSON-based effect categories. To add or modify:
 
-2. Use the split marker to separate helpers from apply code:
-   ```glsl
-   // Helper functions here
-   vec3 applyBloom(vec3 color) { ... }
+1. Edit/create the relevant JSON in `pack/<category>/`
+2. Reference Microsoft's docs for schema details:
+   https://learn.microsoft.com/en-us/minecraft/creator/documents/vibrantvisuals/
+3. Run `python scripts/build.py`
+4. Test in Minecraft
 
-   // ---LILY_SPLIT---
+## Adding a Preset Subpack
 
-       fragmentOutput.Color0.rgb = applyBloom(fragmentOutput.Color0.rgb);
-   ```
+Subpacks let users pick a preset from the resource pack's settings.
 
-3. Register the feature in `scripts/presets.py`:
-   ```python
-   FEATURE_MATERIALS = {
-       "grading": ["RenderChunk"],
-       "bloom": ["RenderChunk"],  # Add this
-   }
+1. Add the subpack entry in `pack/manifest.json`:
+   ```json
+   "subpacks": [
+     { "folder_name": "ultra", "name": "Ultra", "memory_tier": 2 }
+   ]
    ```
 
-4. Add to preset features:
-   ```python
-   "mid": {
-       "macros": { ... },
-       "features": ["grading", "bloom"],
-   },
+2. Create the override folder:
+   ```
+   pack/subpacks/ultra/
+       color_grading/color_grading.json
+       lighting/global.json
+       water/water.json
    ```
 
-## Validating GLSL
+3. Only include the JSON files you want to override - other files fall back to the defaults in `pack/`
 
-Use glslang to validate shaders before testing on device:
+4. Build and test
+
+## Testing JSON Validity
 
 ```bash
-# Validate a specific shader
-.\tools\bin\glslang.exe -S frag build\work\mid\RenderChunk\Opaque\0.ESSL_310.Fragment.glsl
+# Check all JSON files in the pack
+python -c "import json,glob; [json.load(open(f)) for f in glob.glob('pack/**/*.json', recursive=True)]; print('All valid')"
 ```
 
-No output = valid GLSL.
+## Output Location
 
-## Troubleshooting
-
-### "Repacking failed"
-- Check that Java is installed and `java` command works
-- Verify `tools/bin/MaterialBinTool.jar` exists
-
-### "Injected into 0 fragment shader(s)"
-- Ensure vanilla materials are unpacked in `vanilla/mbt/`
-- Check that the material name in `FEATURE_MATERIALS` matches the folder name
-
-### mcpack file is very small
-- Check that `pack/manifest.json` exists
-- Verify materials were repacked successfully
+All builds go to `build/`. Files there are gitignored. Versioned releases should be tagged in git.

@@ -1,20 +1,9 @@
 # Build output
 build/
-dist/
 *.mcpack
 *.mcaddon
 
-# Vanilla materials (Mojang content, do not commit)
-vanilla/
-!vanilla/.gitkeep
-
-# Tools binaries (download per-machine)
-tools/bin/
-tools/*.exe
-tools/*.jar
-!tools/README.md
-
-# APK source (do not commit)
+# APK source (not needed for Vibrant Visuals approach)
 *.apk
 *.aab
 aplikasi minecraft/
@@ -23,25 +12,14 @@ aplikasi minecraft/
 __pycache__/
 *.py[cod]
 *$py.class
-.venv/
-venv/
-env/
-.Python
-*.egg-info/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-.clangd/
-.cache/
 
 # OS
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Logs
-*.log
-

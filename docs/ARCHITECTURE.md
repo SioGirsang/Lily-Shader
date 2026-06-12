@@ -1,173 +1,147 @@
 # Architecture
 
-## Overview
-
-Lily Shader uses **MaterialBinTool** to unpack vanilla shaders, **inject.py** to insert effect code, then repack into a distributable `.mcpack`.
+## Pipeline (Vibrant Visuals)
 
 ```
-┌─────────────────────┐
-│  Minecraft APK      │
-│  (.material.bin)    │
-└─────────┬───────────┘
-          │ extract_apk.py
-          ▼
-┌─────────────────────┐
-│  vanilla/android/   │
-│  RenderChunk.bin    │
-└─────────┬───────────┘
-          │ MaterialBinTool -u (unpack)
-          ▼
-┌─────────────────────┐
-│  vanilla/mbt/       │
-│  RenderChunk/       │
-│    Opaque/          │
-│      0.ESSL_310.    │
-│        Fragment.glsl│
-└─────────┬───────────┘
-          │ build.py → inject.py
-          ▼
-┌─────────────────────┐
-│  build/work/{preset}│
-│  (injected GLSL)    │
-└─────────┬───────────┘
-          │ MaterialBinTool -r (repack)
-          ▼
-┌─────────────────────┐
-│  build/materials/   │
-│  RenderChunk.bin    │
-└─────────┬───────────┘
-          │ build.py (package)
-          ▼
-┌─────────────────────┐
-│  Lily-Shader-       │
-│  v0.1.0-mid.mcpack  │
-└─────────────────────┘
+JSON configs in pack/
+        |
+   [build.py: zip everything]
+        |
+   Lily-Shader-v{ver}.mcpack
+        |
+   [User imports to Minecraft]
+        |
+   [Minecraft loads Vibrant Visuals settings from JSON]
+        |
+   Effects rendered by Minecraft's built-in deferred renderer
 ```
+
+No GLSL, no shader compilation, no binary repacking. Minecraft's Vibrant Visuals engine reads our JSON files and applies the settings directly.
+
+## Why This Approach
+
+**Old approach (MaterialBinTool):**
+- Reverse-engineered binary `.material.bin` modification
+- Required Java, shaderc, MaterialBinTool, MB Loader on Android
+- Broken at every Minecraft format change
+- Round-trip repack lost data on MC 1.26+ (terrain disappeared)
+
+**New approach (Vibrant Visuals):**
+- Official Mojang/Microsoft API
+- Pure JSON config
+- Stable across game updates
+- Works on Windows, Android, iOS, Xbox without launcher
 
 ## Directory Structure
 
 ```
 Lily-Shader/
-├── src/
-│   └── fragments/           # Effect code snippets
-│       └── grading.glsl     # Color grading (tonemap, saturation, contrast)
+├── pack/
+│   ├── manifest.json              # capabilities: ["pbr"]
+│   ├── pack_icon.png
+│   │
+│   ├── color_grading/
+│   │   └── color_grading.json     # ACES tonemap + contrast/saturation/temperature
+│   │
+│   ├── lighting/
+│   │   └── global.json            # Sun/moon illuminance & color (keyframed)
+│   │
+│   ├── atmospherics/
+│   │   └── atmospherics.json      # Sky zenith/horizon, Rayleigh/Mie
+│   │
+│   ├── water/
+│   │   └── water.json             # Waves, caustics, particle concentrations
+│   │
+│   ├── shadows/
+│   │   └── shadows.json           # Soft shadows, texel size
+│   │
+│   ├── pbr/
+│   │   └── global.json            # Fallback MERS for non-PBR textures
+│   │
+│   ├── local_lighting/
+│   │   └── local_lighting.json    # Torch, lantern, end_rod custom colors
+│   │
+│   └── subpacks/
+│       ├── low/                   # Performance preset (overrides)
+│       │   ├── color_grading/
+│       │   ├── lighting/
+│       │   ├── shadows/
+│       │   └── water/
+│       └── mid/                   # Balanced preset (mirrors defaults)
+│           ├── color_grading/
+│           ├── lighting/
+│           ├── shadows/
+│           └── water/
 │
 ├── scripts/
-│   ├── build.py             # Main build orchestrator
-│   ├── inject.py            # GLSL injection engine
-│   ├── presets.py           # Preset definitions & macros
-│   └── extract_apk.py       # APK material extractor
+│   └── build.py                   # Zip pack/ into .mcpack
 │
-├── vanilla/
-│   ├── android/             # Extracted .material.bin (gitignored)
-│   └── mbt/                 # Unpacked materials (gitignored)
+├── docs/
+│   ├── SETUP.md
+│   ├── BUILD.md
+│   └── ARCHITECTURE.md
 │
-├── pack/
-│   ├── manifest.json        # Resource pack manifest
-│   ├── pack_icon.png        # Pack icon
-│   └── subpacks/            # Preset subpack folders
-│
-├── tools/bin/
-│   ├── MaterialBinTool.jar  # Unpack/repack tool
-│   ├── shaderc.exe          # bgfx compiler (optional)
-│   └── glslang.exe          # GLSL validator (optional)
-│
-└── build/                   # Build output (gitignored)
+└── build/                          # Output (gitignored)
 ```
 
-## Injection System
+## Subpack System
 
-### Fragment Files
+Minecraft's subpack mechanism lets users choose a preset from the resource pack's settings UI. Each subpack folder is a partial overlay:
 
-Each effect is a `.glsl` file in `src/fragments/` with two sections:
+- Files in `pack/foo/bar.json` are the **default**
+- If `pack/subpacks/low/foo/bar.json` exists, it **replaces** the default when "Low" preset is active
+- Files NOT overridden in a subpack fall back to the default
 
-```glsl
-// Section 1: Helper functions (injected before main())
-vec3 myEffect(vec3 color) {
-    return color * 1.5;
-}
+This means each preset only specifies what changes, keeping configs minimal.
 
-// ---LILY_SPLIT---
+## Keyframe Animation
 
-// Section 2: Apply call (injected before bgfx_FragColor assignment)
-    fragmentOutput.Color0.rgb = myEffect(fragmentOutput.Color0.rgb);
-```
+Many Vibrant Visuals parameters support keyframes - values that change with time of day:
 
-### Injection Points
-
-1. **Helpers** - Injected just before `void main(){`
-2. **Apply** - Injected just before `bgfx_FragColor = fragmentOutput.Color0;`
-
-### Macros
-
-Preset macros are prepended as `#define` statements:
-
-```glsl
-// === LILY HELPERS START ===
-#define LILY_EXPOSURE 1.15
-#define LILY_SATURATION 1.08
-#define LILY_CONTRAST 1.04
-
-vec3 lilyGrade(vec3 color) { ... }
-// === LILY HELPERS END ===
-```
-
-## Preset System
-
-Presets are defined in `scripts/presets.py`:
-
-```python
-PRESETS = {
-    "mid": {
-        "macros": {
-            "LILY_EXPOSURE": "1.15",
-            "LILY_SATURATION": "1.08",
-            "LILY_CONTRAST": "1.04",
-        },
-        "features": ["grading"],
-    },
+```json
+"illuminance": {
+  "0.0": 110000.0,    // Noon: full daylight
+  "0.25": 25000.0,    // Sunset
+  "0.5": 0.5,         // Midnight: nearly off
+  "0.75": 25000.0,    // Sunrise
+  "1.0": 110000.0     // Next noon
 }
 ```
 
-### Inheritance
+Keys are floats from 0 (noon) to 1 (next noon, 24h later). Minecraft linearly interpolates between keys.
 
-Presets can inherit from a base:
+Used heavily in `lighting/global.json` and `atmospherics/atmospherics.json` for natural day/night transitions.
 
-```python
-"custom_bloom_on": {
-    "base": "mid",
-    "features": ["grading", "bloom"],
-}
-```
+## Schema Versions
 
-## Materials
+Each JSON has a `format_version` matching the Minecraft schema it targets:
 
-### RenderChunk
+| File | Schema Version | Why |
+|------|----------------|-----|
+| color_grading.json | 1.21.90 | Temperature grading added |
+| lighting/global.json | 1.26.0 | Keyframe support for ambient/sky |
+| atmospherics/atmospherics.json | 1.21.40 | Atmospherics introduced |
+| water/water.json | 1.26.0 | biome_water_color_contribution added |
+| shadows/shadows.json | 1.21.80 | Shadow customization added |
+| pbr/global.json | 1.21.40 | PBR fallback introduced |
+| local_lighting/local_lighting.json | 1.21.120 | Replaces old point_lights/ |
 
-The main terrain material. Handles:
-- Block textures
-- Lightmap
-- Fog
-- **Lily additions**: ACES tonemap, color grading
-
-Passes: `Opaque`, `AlphaTest`, `Transparent`, `DepthOnly`, `DepthOnlyOpaque`
-
-### Future Materials
-
-- `Sky` - sky gradient, atmosphere
-- `Clouds` / `CloudsForwardPBR` - cloud rendering
-- `WaterForwardPBR` - water surface
-- `SunMoon` - sun and moon
-- `Stars` - night sky stars
+`min_engine_version` in manifest is `[1, 21, 120]` to ensure all features are available.
 
 ## Maintainability
 
 When Minecraft updates:
+- JSON schemas evolve, but old `format_version` values remain supported
+- New fields can be added by bumping `format_version` in the affected file
+- No reverse engineering needed
+- Documentation: https://learn.microsoft.com/en-us/minecraft/creator/documents/vibrantvisuals/
 
-1. Extract new vanilla materials from updated APK
-2. Unpack with MaterialBinTool
-3. Check for structural changes (new passes, renamed uniforms)
-4. Rebuild - injection system adapts automatically if structure unchanged
-5. Test on device
+## Future Extensions
 
-The injection approach is resilient because it targets specific patterns (`void main()` and `bgfx_FragColor`) rather than line numbers.
+Areas to extend in later phases:
+
+- **Per-biome variants**: `atmospherics/end.json`, `water/ocean.json`, etc. with `biomes/*.client_biome.json` references
+- **Texture sets**: `textures/blocks/*.texture_set.json` for PBR-aware blocks
+- **Volumetric fog**: `fogs/default_fog_settings.json` with media coefficients
+- **More subpacks**: Custom variants per-feature (shadows quality, water quality, etc.)
+- **Heightmaps**: For displaced surfaces in PBR
